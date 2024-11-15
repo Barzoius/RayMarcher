@@ -15,7 +15,6 @@ Window::~Window()
 }
 
 
-
 void Window::Init(int width, int height, const char* name)
 {
     mData.Title = name;

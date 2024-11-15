@@ -1,12 +1,10 @@
-
 #include "App.hpp"
 
 #include <vector>
 
 Application::Application()
 {
-    mWindow = std::make_unique<Window>(800, 600, "TOY_GFX");
-
+    mWindow = std::make_unique<Window>(800, 600, "RayMarcher");
 
 
     if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -23,6 +21,8 @@ Application::~Application()
 
 }
 
+
+
 void Application::OnEvent()
 {
     if (glfwGetKey(mWindow->GetWindow(), GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -35,25 +35,11 @@ void Application::OnEvent()
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
     }
 
-    if (glfwGetKey(mWindow->GetWindow(), GLFW_KEY_E) == GLFW_PRESS)
-    {
-        //glfwSetWindowShouldClose(mWindow->GetWindow(), true);
-        std::cout << "E";
-    }
-
 }
 
 
 void Application::Run()
 {
-
-    glm::mat4 cameraView;
-    glm::mat4 projection = glm::mat4(1.0f);
-
-
-
-
-
     GLuint VAO;
     glGenVertexArrays(1, &VAO);
     glBindVertexArray(VAO);
@@ -61,18 +47,14 @@ void Application::Run()
     ShaderSuite ss = ShaderSuite(std::initializer_list<std::pair<std::string_view, Shader::ShaderType>>{
         {"Shader/BaseVertexShader.glsl", Shader::ShaderType::VERTEX},
         { "Shader/RayMarching.glsl", Shader::ShaderType::FRAGMENT },
-        //{ "Shader/Compute1.glsl", Shader::ShaderType::COMPUTE }
     });
     
-    GLuint ssbo;
 
-    //glGenBuffers(1, &ssbo);
-    //glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
-    //glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(glm::vec3) * 8, NULL, GL_DYNAMIC_COPY); // 8 vertices
-    //glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssbo);
+    glm::vec2 res;
+    glm::vec2 mouse;
 
-    glm::vec2 res = glm::vec2(mWindow->GetWidth(), mWindow->GetHeight());
-
+    double xpos, ypos;
+    int wndWidth, wndHeight;
 
     while (!glfwWindowShouldClose(mWindow->GetWindow()))
     {
@@ -82,11 +64,20 @@ void Application::Run()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 
-        projection = glm::perspective(glm::radians(45.0f), (float)mWindow->GetWidth() / (float)mWindow->GetHeight(), 0.1f, 100.0f);
+
+        glfwGetCursorPos(mWindow->GetWindow(), &xpos, &ypos);
+        glfwGetWindowSize(mWindow->GetWindow(), &wndWidth, &wndHeight);
+
+        float NDC_X = (xpos / wndWidth) * 2.0f - 1.0f;
+        float NDC_Y = 1.0f - (ypos / wndHeight) * 2.0f;
 
 
-        ss.setVec2("uResolution", res);
+        res = glm::vec2(wndWidth, wndHeight);
+        mouse = glm::vec2(NDC_X, NDC_Y);
+
         ss.use();
+        ss.setVec2("uResolution", res);
+        ss.setVec2("uDirection", mouse);
 
 
         glBindVertexArray(VAO);

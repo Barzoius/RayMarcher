@@ -3,6 +3,7 @@
 layout (location = 0) out vec4 FragColor;
 
 uniform vec2 uResolution;
+uniform vec2 uDirection;
 
 const float FOV = 1.0f;
 const int STEPS = 256;
