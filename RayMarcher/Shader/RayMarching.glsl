@@ -20,38 +20,62 @@ float planeSDF(vec3 p, vec3 n, float distance)
     return dot(p,n) + distance;
 }
 
-float sdCutSphere( vec3 p, float r, float h )
-{
-  // sampling independent computations (only depend on shape)
-  float w = sqrt(r*r-h*h);
 
-  // sampling dependant computations
-  vec2 q = vec2( length(p.xz), p.y );
-  float s = max( (h-r)*q.x*q.x+w*w*(h+r-2.0*q.y), h*q.x-w*q.y );
-  return (s<0.0) ? length(q)-r :
-         (q.x<w) ? h - q.y     :
-                   length(q-vec2(w,h));
-}
 
-vec2 map(vec3 p)
+
+vec2 sample(vec3 p)
 {
    // p = mod(p, 4.0) - 4.0 * 0.5;
 
     float planeSDF = planeSDF(p, vec3(0,1,0), 1.0);
-    float planeID = 2.0f;
+    float planeID = 2.0;
     vec2  plane = vec2(planeSDF, planeID);
 
-    float cutSphereSDF = sdCutSphere(p, 1.0f, 3.0f);
-    float cutSphereID = 3.0f;
-    vec2 cutSphere = vec2(cutSphereSDF, cutSphereID);
-
-    float sphereSDF = length(p) - 1.0f;
-    float sphereID = 1.0f;
+    float sphereSDF = length(p) - 1.0;
+    float sphereID = 1.0;
     vec2 sphere = vec2(sphereSDF, sphereID);
 
-    vec2 result = UNION(UNION(sphere, cutSphere), plane);
+    vec2 result = UNION(sphere, plane);
     
     return result;
+}
+
+vec3 getNormal(vec3 p)
+{
+    vec2 e = vec2(EPSILON, 0.0);
+
+    vec3 normal = vec3(sample(p).x) - vec3(sample(p - e.xyy).x, 
+                       sample(p - e.yxy).x, 
+                       sample(p - e.yyx).x);
+
+    return normalize(normal);
+}
+
+vec3 lightComponent(vec3 p, vec3 rd, vec3 color)
+{
+    vec3 sourcePos = vec3(20.0, 40.0, -30.0);
+    vec3 lightRay = normalize(sourcePos - p);
+    vec3 surfaceNormal = getNormal(p);
+
+    vec3 diffuse = color * clamp(dot(lightRay, surfaceNormal), 0.0, 1.0);
+    return diffuse;
+}
+
+vec3 colorComponent(vec3 p, float id)
+{
+    vec3 color;
+    switch(int(id))
+    {
+        case 1:
+            color = vec3(0.91, 0.64, 0.09);
+            break;
+        case 2:
+            color = vec3(0.3, 0.94, 0.59);
+            break;
+    }
+
+    return color;
+
 }
 
 vec2 RayMarching(vec3 rayOrigin, vec3 rayDir)
@@ -61,15 +85,16 @@ vec2 RayMarching(vec3 rayOrigin, vec3 rayDir)
     for(int i = 0; i < STEPS; i++)
     {
         vec3 p = rayOrigin + obj.x * rayDir;
-        hit = map(p);
+        hit = sample(p);
 
-        obj.x += hit.x;
-        obj.y += hit.y;
 
         if(abs(hit.x) < EPSILON || obj.x > DISTANCE)
         {
+            obj.y += hit.y;
             break;
         }
+        
+        obj.x += hit.x;
     }
 
     return obj;
@@ -84,7 +109,9 @@ void render(inout vec3 color, in vec2 uv)
 
     if(obj.x  < DISTANCE)
     {
-        color += 3.0f / obj.x;
+        vec3 p = rayOrigin + obj.x * rayDirection;
+        vec3 c =  colorComponent(p, obj.y);
+        color += lightComponent(p, rayDirection, c);
     }
 }
 
