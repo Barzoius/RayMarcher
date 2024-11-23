@@ -68,12 +68,8 @@ void Application::Run()
         glfwGetCursorPos(mWindow->GetWindow(), &xpos, &ypos);
         glfwGetWindowSize(mWindow->GetWindow(), &wndWidth, &wndHeight);
 
-        float NDC_X = (xpos / wndWidth) * 2.0f - 1.0f;
-        float NDC_Y = 1.0f - (ypos / wndHeight) * 2.0f;
-
-
         res = glm::vec2(wndWidth, wndHeight);
-        mouse = glm::vec2(NDC_X, NDC_Y);
+        mouse = glm::vec2(xpos, ypos);
 
         ss.use();
         ss.setVec2("uResolution", res);

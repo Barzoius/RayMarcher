@@ -11,9 +11,26 @@ const int STEPS = 256;
 const float DISTANCE = 500;
 const float EPSILON = 0.001;
 
+#define PI 3.14159265
+
 vec2 UNION(vec2 CSG_1, vec2 CSG_2)
 {
     return (CSG_1.x < CSG_2.x) ? CSG_1 : CSG_2;
+}
+
+vec2 INTERSECTION(vec2 CSG_1, vec2 CSG_2)
+{
+    return (CSG_1.x > CSG_2.x) ? CSG_1 : CSG_2;
+}
+
+vec2 DIFFERENCE(vec2 CSG_1, vec2 CSG_2)
+{
+    return (CSG_1.x > -CSG_2.x) ? CSG_1 : vec2(-CSG_2.x, CSG_2.y);
+}
+
+
+float vmax(vec3 v) {
+    return max(max(v.x, v.y), v.z);
 }
 
 float planeSDF(vec3 p, vec3 n, float distance)
@@ -27,29 +44,39 @@ float cylinderSDF(vec3 p, float r, float height) {
     return d;
 }
 
+float rectangleSDF(vec3 p, vec3 b) {
+    vec3 d = abs(p) - b;
+    return length(max(d, vec3(0))) + vmax(min(d, vec3(0)));
+}
+
 void rotate(inout vec2 p, float a) {
-	p = cos(a)*p + sin(a)*vec2(p.y, -p.x);
+    p = cos(a)*p + sin(a)*vec2(p.y, -p.x);
 }
 
 
 vec2 sample(vec3 p)
 {
 
-    float sphereSDF = length(p) - 1.0;
+    float sphereSDF = length(p) - 1.2;
     float sphereID = 1.0;
     vec2 sphere = vec2(sphereSDF, sphereID);
 
-    float planeSDF = planeSDF(p, vec3(0,1,0), 1.0);
+    float planeSDF = planeSDF(p, vec3(0,1,0), 14.0);
     float planeID = 2.0;
     vec2  plane = vec2(planeSDF, planeID);
 
 
-    float cylinderSDF = cylinderSDF(p, 0.5, 1.0);
+    float cylinderSDF = cylinderSDF(p, 0.7, 2.0);
     float cylinderID = 3.0;
     vec2 cylinder = vec2(cylinderSDF, cylinderID);
 
-    vec2 result = UNION(sphere, plane);
-    
+    float cubeSDF = rectangleSDF(p, vec3(1,1,1));
+    float cubeID = 3.0;
+    vec2 cube = vec2(cubeSDF, cubeID);
+
+
+    //vec2 result = UNION(UNION(DIFFERENCE(cube,sphere), cylinder), plane);
+    vec2 result = UNION(DIFFERENCE(UNION(cube, cylinder),sphere), plane);
     return result;
 }
 
@@ -86,6 +113,14 @@ vec2 RayMarching(vec3 rayOrigin, vec3 rayDir)
     return obj;
 }
 
+mat3 cameraComponent(vec3 rayOrigin, vec3 lookAt)
+{
+    vec3 forward = normalize(vec3(lookAt - rayOrigin));
+    vec3 right = normalize(cross(vec3(0, 1, 0), forward));
+    vec3 up = cross(forward, right);
+
+    return mat3(right, up, forward);
+}
 
 vec3 lightComponent(vec3 p, vec3 rd, vec3 color)
 {
@@ -131,11 +166,19 @@ vec3 colorComponent(vec3 p, float id)
 
 }
 
+void mouseRotation(inout vec3 rayOrigin)
+{
+    vec2 m = uDirection / uResolution;
+    rotate(rayOrigin.yz, m.y * PI * 0.5 - 0.5);
+    rotate(rayOrigin.xz, m.x * (2 * PI));
+}
 
 void render(inout vec3 color, in vec2 uv)
 {
-    vec3 rayOrigin = vec3(0.0f, 0.0f, -3.0f);
-    vec3 rayDirection = normalize(vec3(uv, FOV));
+    vec3 rayOrigin = vec3(3.0f, 3.0f, -3.0f);
+    mouseRotation(rayOrigin);
+    vec3 lookAt = vec3(0, 0, 0);
+    vec3 rayDirection = cameraComponent(rayOrigin, lookAt) * normalize(vec3(uv, FOV));
 
     vec2 obj = RayMarching(rayOrigin, rayDirection);
 
